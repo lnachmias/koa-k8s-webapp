@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: koa-deployment
+  labels:
+    app: koa
+spec:
+  # Specifies that 3 pods should be running in the deployment
+  replicas: 3
+  selector:
+    matchLabels:
+      app: koa
+  template:
+    metadata:
+      labels:
+        app: koa
+    spec:
+      containers:
+      - name: koa-server
+        image: lnachmias/koa-server:latest
+        #Commands the container to produce a log named "date.log"
+        #This logfile is stored inside the volume mounted directory /var/log
+        args:
+        - /bin/sh
+        - -c
+        - >
+          i=0;
+          while true;
+          do
+            echo "$i: $(date)" >> /var/log/date.log;
+            i=$((i+1));
+            sleep 1;
+          done
+        ports:
+        - containerPort: 3000
+          name: http-web-svc
+        #Mounts the volumes which are specified on volume-config.yaml
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+      volumes:
+      - name: varlog
+        persistentVolumeClaim:
+          claimName: koa-pv-claim
+---
+#Service file
+apiVersion: v1
+kind: Service
+metadata:
+  name: koa-service
+spec:
+  selector:
+    app: koa
+  #LoadBalancer automatically assigns a round-robin rule to the configuration
+  #Usually an Ingress rule assigns the type of Load Balancing, however, only an external LB was asked for this assignment
+  type: LoadBalancer
+  ports:
+    - protocol: TCP
+      port: 3000
+      name: http-web-svc
+      nodePort: 30000
+
